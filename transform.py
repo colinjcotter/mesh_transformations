@@ -1,7 +1,11 @@
 from ufl.corealg.dag_traverser import DAGTraverser
 from ufl.classes import (
     Expr,
+    ReferenceGrad,
+    SpatialCoordinate
     )
+from functools import singledispatchmethod
+from ufl import dot, grad
 
 class MeshTransformPullbacks(DAGTraverser):
     """
@@ -41,3 +45,18 @@ class MeshTransformPullbacks(DAGTraverser):
     def _(self, o: Expr ) -> Expr:
         """Handle Expr."""
         return self.reuse_if_untouched(o)
+
+    @process.register(ReferenceGrad)
+    def _(self, o: Expr ) -> Expr:
+        """Handle ReferenceGrad.
+        If it is applied to SpatialCoordinate,
+        multiply by Grad(Phi), otherwise don't.
+        """
+        print(o)
+        if isinstance(o, SpatialCoordinate):
+            print("here")
+            return dot(grad(self.Phi).T, o)
+        else:
+            print("there")
+            return self.reuse_if_untouched(o)
+
