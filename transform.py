@@ -5,9 +5,9 @@ from ufl.classes import (
     SpatialCoordinate
     )
 from functools import singledispatchmethod
-from ufl import dot, grad
+from ufl import dot, grad, Form
 
-class MeshTransformPullbacks(DAGTraverser):
+class ExpressionPullbacks(DAGTraverser):
     """
     DAGTraversor to pull back equations from a transformed mesh,
     defined by the transformation x -> Phi(x).
@@ -52,11 +52,15 @@ class MeshTransformPullbacks(DAGTraverser):
         If it is applied to SpatialCoordinate,
         multiply by Grad(Phi), otherwise don't.
         """
-        print(o)
-        if isinstance(o, SpatialCoordinate):
-            print("here")
-            return dot(grad(self.Phi).T, o)
+        gradand = o.ufl_operands[0]
+        if isinstance(gradand, SpatialCoordinate):
+            return dot(grad(self._Phi).T, o)
         else:
-            print("there")
             return self.reuse_if_untouched(o)
 
+def pull_back_form(form, Phi):
+    traverser = ExpressionPullbacks(Phi)
+    new_integrals = []
+    for integral in form.integrals():
+        new_integrals.append(integral.reconstruct(traverser(integral.integrand())))
+    return Form(new_integrals)
