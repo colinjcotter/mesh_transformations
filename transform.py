@@ -2,10 +2,12 @@ from ufl.corealg.dag_traverser import DAGTraverser
 from ufl.classes import (
     Expr,
     ReferenceGrad,
-    SpatialCoordinate
+    ReferenceValue,
+    SpatialCoordinate,
+    Inverse,
     )
 from functools import singledispatchmethod
-from ufl import dot, grad, Form
+from ufl import dot, grad, Form, transpose
 
 class ExpressionPullbacks(DAGTraverser):
     """
@@ -51,10 +53,16 @@ class ExpressionPullbacks(DAGTraverser):
         """Handle ReferenceGrad.
         If it is applied to SpatialCoordinate,
         multiply by Grad(Phi), otherwise don't.
+
+        and Grad(Phi)_{ij} = sum_k ReferenceGrad(Phi)_{ik}*J^{-1}_{kj}
         """
         gradand = o.ufl_operands[0]
         if isinstance(gradand, SpatialCoordinate):
-            return dot(grad(self._Phi).T, o)
+            J = ReferenceGrad(gradand)
+            Phi = ReferenceValue(self._Phi)
+            gradPhiT = dot(Inverse(J),
+                           transpose(ReferenceGrad(Phi)))
+            return dot(gradPhiT, o)
         else:
             return self.reuse_if_untouched(o)
 
