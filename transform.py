@@ -9,6 +9,11 @@ from ufl.classes import (
 from functools import singledispatchmethod
 from ufl import dot, grad, Form, transpose
 
+from ufl.algorithms.apply_integral_scaling import apply_integral_scaling
+from ufl.algorithms.apply_geometry_lowering import apply_geometry_lowering
+from ufl.algorithms.apply_function_pullbacks import apply_function_pullbacks
+from ufl.algorithms.apply_derivatives import apply_derivatives
+
 class ExpressionPullbacks(DAGTraverser):
     """
     DAGTraversor to pull back equations from a transformed mesh,
@@ -72,3 +77,11 @@ def pull_back_form(form, Phi):
     for integral in form.integrals():
         new_integrals.append(integral.reconstruct(traverser(integral.integrand())))
     return Form(new_integrals)
+
+def pullback(eqn, Phi):
+    eqn = apply_function_pullbacks(eqn)
+    eqn = apply_integral_scaling(eqn)
+    eqn = apply_derivatives(eqn)
+    eqn = apply_geometry_lowering(eqn)
+    eqn = pull_back_form(eqn, Phi)
+    return eqn
